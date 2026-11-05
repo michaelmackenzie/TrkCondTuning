@@ -55,6 +55,14 @@ hand), the log and the outputs. Jobs are cached by the hash of their fcl, inputs
 so re-running a command only runs what changed. `--cores` is capped at 20 (shared node);
 every mu2e process is single-threaded.
 
+**Long runs:** a full study takes hours. Start it outside your login/IDE session, which can
+be torn down with every process in it, e.g. as a systemd user unit:
+`systemd-run --user --collect --unit=tct bash -c "source .../setup.sh; tct run ... > log 2>&1"`.
+Put the work directory on a disk with room (`export TCT_WORKDIR=...`): each Offline job writes
+~2 GB of temporary art files (deleted after the ntuple), so with 16-18 parallel jobs it needs
+~40 GB. On mu2esrv01, the local `/scratch/mu2e/users/$USER` is a good choice; a full
+`/exp/mu2e/data` quota makes every job fail at once.
+
 Commit the final `results/report.md`, `summary.json` and `explore.json` of a study to
 `results/<study>/` as the reference for later re-runs (`tct check`).
 

@@ -165,5 +165,12 @@ def report(study, wd, configs) -> str      # results/report.md + summary.json
 - Paired significance for efficiency gains uses per-event bits (McNemar).
 
 ## Work log
+- 2026-11-05 (later): integration. Pinned release work area (AnalysisMDC2025 v02_03_01 ->
+  Offline v13_43_00): the shared main area's mu2e-trig-config had uncommitted edits breaking
+  redigi. Fixes: muse env captured from a clean environment (the rootana driver env made mu2e
+  segfault), aprAna SelectEvents TriggerablePath (cosmic files contain non-triggerable events),
+  'proposed' config in the CLI, rate_paths = cpr + apr D0200 paths. First full run died when
+  /exp/mu2e/data quota filled (Offline art files): work dir moved to /scratch/mu2e/users/$USER/tct,
+  chain started as a systemd user unit.
 - 2026-11-05: design; study.py API written. Implementation split: infrastructure (env,
   inputs, fclgen, runner, jobs, cli), metrics + report, exploration + study content.
