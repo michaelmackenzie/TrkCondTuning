@@ -123,6 +123,9 @@ physics.analyzers.aprAna : {{
   comboHitTag    : "{APR_COMBOHIT_TAG}"
   strawDigiMCTag : "{STRAWDIGIMC_TAG}"
   triggerPaths   : {_quote_list(study.trigger_paths)}
+  # only MC-triggerable events (makeSD doesn't run on the others): the tree entries are the
+  # efficiency denominator
+  SelectEvents   : [ TriggerablePath ]
 }}
 physics.AnaPath : [ aprAna ]
 physics.end_paths : [ AnaPath ]
