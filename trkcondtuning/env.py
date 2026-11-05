@@ -50,7 +50,15 @@ def find_musework(musework: Optional[str] = None) -> str:
 def _capture(work: str) -> Dict[str, str]:
     cmd = (f"source {SETUP_SCRIPT} > /dev/null 2>&1; cd '{work}' || exit 1; "
            "muse setup > /dev/null 2>&1; env -0")
-    r = subprocess.run(["bash", "-c", cmd], capture_output=True, check=True)
+    # start from a clean environment: the driver runs in the python analysis env (pyenv
+    # rootana, conda), whose PATH / LD_LIBRARY_PATH / ROOT and compiler variables break mu2e
+    # (cling picks up the conda headers and art segfaults)
+    keep = ("HOME", "USER", "LOGNAME", "HOSTNAME", "TERM", "LANG", "TZ", "KRB5CCNAME",
+            "X509_USER_PROXY", "X509_CERT_DIR", "BEARER_TOKEN_FILE", "BEARER_TOKEN", "TMPDIR")
+    clean = {k: os.environ[k] for k in keep if k in os.environ}
+    clean["PATH"] = "/usr/local/bin:/usr/bin:/bin"
+    r = subprocess.run(["bash", "--noprofile", "--norc", "-c", cmd], capture_output=True, check=True,
+                       env=clean)
     env = {}
     for item in r.stdout.split(b"\0"):
         if not item:
