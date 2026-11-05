@@ -1,0 +1,169 @@
+# TrkCondTuning: design and status
+
+Generalizes the reduced-tracker study of 2026-10 (main/trigger/reduced_tracker, notes.org there)
+so that the re-tuning of the Offline reconstruction and the trigger can be repeated for any new
+detector condition (e.g. an official realistic-conditions setup) with repeatable results.
+
+## Status (last update 2026-11-05)
+- v0 design written (this file); implementation in progress.
+
+## What a study does
+1. Evaluate every metric for the nominal configuration (conditions the inputs were made
+   with), the condition under study with default settings (baseline), and any reference
+   configurations.
+2. Explore candidate settings: reco phase (Offline), then trigger phase, greedy forward
+   selection with paired significance and background-rate / resolution constraints.
+3. Evaluate every metric for the proposed configuration, and write a report
+   (nominal / baseline / references / proposed).
+
+Metrics (each per configuration):
+- trigger efficiency per path and path OR, of MC-triggerable signal events (CeM, CeP, ...),
+  and relative to nominal
+- background trigger rate per path (NoPrimary; pass fraction x 1/microbunch x duty factor,
+  0 events -> < 3 events at 95% CL)
+- Offline: found efficiency (MC-matched CE track), reconstructable (>= nactive_trig active
+  hits, p > pmin), quality (TrkQual-input box cuts); trigger efficiency of Offline
+  reconstructable events; Offline AND triggered
+- where the trigger loses Offline-reconstructable events (stage diagnostics: TC / no helix /
+  HS cuts / no fit / KS cuts)
+- Offline momentum resolution at TT_Front: sigma68 and tail fraction, all / quality, and by
+  N(active) region
+- cosmic signal efficiency by e/mu x up/downstream (p > 75 MeV/c)
+- trigger CPU time (studied trigger paths only, data read excluded)
+
+## Layout
+```
+setup.sh                    environment: muse setup of a work area + PYTHONPATH, PATH
+bin/tct                     CLI (python3 -m trkcondtuning.cli)
+trkcondtuning/
+  study.py                  Study / Condition / Setting / Config / Sample (the API; written first)
+  env.py                    muse environment capture, provenance (git hashes, build)
+  inputs.py                 sample file lists -> paths (mdh), fixed grouping
+  fclgen.py                 job fcl generation (self-contained: templates + fragments inlined)
+  templates/*.fcl           redigi_core, reco_core (+ mctags), ntuple, stage/timing snippets
+  runner.py                 local job queue, core cap (<= 20), caching by fcl hash
+  jobs.py                   job specs per kind (trig, offline, stage, timing) + run helpers
+  metrics/artlog.py         TrigReport parsing, art status
+  metrics/trigger.py        signal efficiency (per-event bits from the AprHelixTruthAna tree),
+                            background rates
+  metrics/offline.py        Offline efficiencies, trigger-given-Offline (EventNtuple via pyevtana)
+  metrics/stage.py          stage-of-loss classification
+  metrics/resolution.py     momentum resolution
+  metrics/cosmic.py         cosmic efficiency by category
+  metrics/timing.py         TimeTracker sqlite parsing
+  explore.py                greedy reco + trigger exploration -> proposal
+  knobs.py                  generated settings (e.g. a filter cut on a list of paths)
+  report.py                 report.md + summary.json
+  cli.py
+conditions/<name>/          condition tables and fcl fragments
+fragments/{trigger,reco,response}/*.fcl   reusable settings
+studies/<name>.py           study definitions (STUDY = Study(...))
+samples/*.txt               input file-name lists (fixed order)
+results/<study>/            committed reference results (summary.json, report.md, explore.json)
+tests/                      unit tests of parsing / metrics on small fixtures
+```
+
+## Work directory (outside the repo; default $TCT_WORKDIR/<study> or
+## /exp/mu2e/data/users/$USER/tct/<study>)
+```
+<wd>/study.json                          resolved study, rewritten on each command
+<wd>/provenance/<UTC timestamp>.json     env + git hashes + muse build per command
+<wd>/conditions/<condition>/<table>      copies of the text tables (on MU2E_SEARCH_PATH)
+<wd>/jobs/<kind>/<config>/<sample>/<job>/
+      job.fcl         self-contained (only #includes of Offline/Production/mu2e-trig-config/EventNtuple)
+      job.dump.fcl    fhicl-dump of job.fcl
+      inputs.txt      input file paths
+      cmd.sh          exact command (re-runnable by hand)
+      job.log         mu2e stdout+stderr
+      status.json     {"exit": int, "ok": bool, "start": ..., "end": ..., "host": ..., "key": <hash>}
+      ana.root / nts.root / timing.db / ...   outputs
+<wd>/results/                            metric JSONs per config, explore.json, summary.json, report.md
+```
+`<job>` is `f<NNN>` (one input file; signal / cosmic) or `g<NN>` (background group). A job is
+re-used when status.ok and its key (hash of job.fcl + inputs.txt + command) is unchanged.
+
+### Job kinds
+- `trig` (signal, background, cosmic): re-digitize the tracker (makeSD from compressDigiMCs
+  StrawGasSteps, UseStatus per condition) with the condition, run only the study's trigger
+  paths (`physics.trigger_paths : [ TriggerablePath, <trigger_paths> ]`), no art output; an
+  end-path `AprHelixTruthAna` (module label `aprAna`, TFileService `ana.root`, tree
+  `aprAna/helices`, branches run/subrun/event/pdg/p/pz/nsh/trig_<path>) gives per-event trigger
+  bits and truth. Signal / cosmic keep MC-triggerable events
+  (TriggerableLHPath/TwoTrackPath/CaloPath of the Digitize process); background keeps all
+  (DigitizePath). Trigger-scope settings only.
+- `offline` (signal): redigi (trigger-scope settings; writes dig.art, triggerable events) ->
+  Offline reco (Production recoMC OnSpill + StrawDigiMC tags -> makeSD, reco-scope settings;
+  mcs.art) -> EventNtuple (from_mcs-mixed, TriggerProcessName Redigitize; nts.root). One job
+  directory, three steps (cmd.sh runs them in sequence); art files deleted after success
+  unless --keep-art.
+- `stage` (signal): trigger job with the TC/HS/KS filters of the objective paths in debug mode
+  and per-event ArtReport markers; log parsed by metrics/stage.py against the `offline`
+  ntuples of the same config.
+- `timing` (background, first timing_events events): trigger job with TimeTracker
+  (sqlite timing.db) and the PrefetchDAQData module after makeSD.
+
+Every mu2e command: `mu2e --nthreads 1 --nschedules 1`, env OMP/OPENBLAS/MKL_NUM_THREADS=1.
+
+## Key interfaces (other modules rely on these)
+```python
+# env.py
+def mu2e_env(musework: str | None = None) -> dict          # captured env (cached per process)
+def provenance(env: dict) -> dict                          # git hashes / branches / dirty of musework repos, muse build, host, user, repo hash
+
+# runner.py
+@dataclass class Job: kind, config, sample, name, dir, cmd: list[str] (or script), inputs, key
+class Runner(max_cores=16): submit(jobs) -> runs all not-cached jobs, at most max_cores at once; returns list[JobResult(ok, dir, cached)]
+# hard cap: max_cores <= 20 (refuse more)
+
+# jobs.py
+def trig_jobs(study, config, sample, wd) -> list[Job]
+def offline_jobs(study, config, sample, wd, keep_art=False) -> list[Job]
+def stage_jobs(study, config, sample, wd) -> list[Job]
+def timing_jobs(study, config, sample, wd) -> list[Job]
+def run(study, configs, kinds, wd, runner, samples=None) -> None   # builds + runs, raises on failures
+def job_dirs(wd, kind, config_name, sample_name) -> list[str]       # existing job dirs, sorted
+
+# metrics (all return plain dicts, JSON-serializable; per config)
+trigger.signal(wd, config, sample, paths) -> {"events": n, "pass": {expr: n}, "events_ids": ...}
+trigger.signal_bits(wd, config, sample, paths) -> {(run,subrun,event): {path: bool}}
+trigger.background(wd, config, sample, paths) -> {"events": n, "pass": {path: n}, "rate_hz": {...}, "rate_ul": {...}}
+trigger.background_bits(...) -> per-event bits (paired comparisons)
+offline.efficiency(wd, config, sample, study.offline, paths) -> {"events", "found", "reco", "quality", "trig_all": {expr: n}, "trig_given_reco": {...}, "joint": {...}}
+offline.per_event(wd, config, sample, sel) -> {(run,subrun,event): {"found":bool,"reco":bool,"quality":bool,"dp":float|None,"nactive":int}}
+stage.losses(wd, config, sample, paths, offline_events) -> {path: {category: n, "details": {...}}}
+resolution.summary(wd, config, sample, sel) -> {"all": {"sigma68":..,"tail":..,"n":..}, "quality": {...}, "by_nactive": {...}}
+cosmic.efficiency(wd, config, sample, paths, pmin=75) -> {category: {"events": n, "pass": {path: n}}}
+timing.summary(wd, config, sample, study) -> {"events": n, "mean_ms":..., "median_ms":..., "p90":..., "p99":..., "modules": {label: ms}}
+paired(a_bits, b_bits) -> {"n": n, "gain": g, "loss": l, "z": (g-l)/sqrt(g+l)}   # McNemar
+
+# explore.py
+def explore(study, wd, runner, phases=("reco", "trigger")) -> dict   # writes results/explore.json; returns {"proposed": Config-json, "rounds": [...]}
+def proposed_config(study, wd) -> Config                              # from results/explore.json
+
+# report.py
+def evaluate(study, wd, configs) -> dict   # all metrics for configs -> results/<config>.json
+def report(study, wd, configs) -> str      # results/report.md + summary.json
+```
+
+## Repeatability
+- Inputs: fixed, ordered file-name lists in samples/, fixed events per file and grouping.
+- Seeds: SeedService baseSeed from Production (fixed); the same job (same inputs and
+  grouping) gives identical results with the same build. Compare configurations only within
+  one grouping (paired).
+- Provenance: every command records git hashes and dirty state of the musework repos and
+  this repo; the report shows them. `tct check` compares a work directory's summary with a
+  committed results/<study>/summary.json.
+- The shared work area can change mid-run: pin the build (record and verify the Offline hash
+  before each stage; refuse to mix results from different builds unless --allow-mixed).
+
+## Limitations carried over
+- Re-digitization from the kept StrawGasSteps is only valid when the condition lowers the
+  straw hit efficiency (dead channels, lower gain/HV, higher thresholds). A condition that
+  raises it needs new digi samples (Condition.redigi_ok = False -> refuse).
+- Background is NoPrimary microbunch triggers only (no Offline fake-track rate for the reco
+  phase).
+- Paired significance for efficiency gains uses per-event bits (McNemar).
+
+## Work log
+- 2026-11-05: design; study.py API written. Implementation split: infrastructure (env,
+  inputs, fclgen, runner, jobs, cli), metrics + report, exploration + study content.

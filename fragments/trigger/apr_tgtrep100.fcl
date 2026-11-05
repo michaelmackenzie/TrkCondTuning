@@ -1,0 +1,6 @@
+# APR target-constrained refit: if the best helix candidate has |d0| > 100 mm, refit its circle
+# through the stopping target (error 100 mm) with a dphi/dz scan; the refit REPLACES the best
+# candidate if it has at least as many straw hits (replace mode: no duplicate helices, so the
+# multi-helix / TwoTrk paths are not affected). Needs maxHelixCandidates > 1 (apr_cand3a20).
+# 2026-10-14: APR_D0200 CeM 52.9 -> 61.9%, CeP 28.5 -> 39.1% (with the other APR finder steps).
+physics.producers.TrigAprHelixFinder.targetRefitSigma : 100

@@ -1,0 +1,15 @@
+# dig.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_3.art
+# generated 2026-11-05; names verified to exist by:
+#   samweb list-files "dh.dataset=dig.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_3.art"  (and listing matched below)
+# fixed order; do not reorder (job order and grouping depend on it)
+dig.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_3.001430_00000003.art
+dig.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_3.001430_00001809.art
+dig.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_3.001430_00001607.art
+dig.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_3.001430_00000384.art
+dig.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_3.001430_00001798.art
+dig.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_3.001430_00000056.art
+dig.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_3.001430_00000018.art
+dig.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_3.001430_00001392.art
+dig.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_3.001430_00001044.art
+dig.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_3.001430_00000475.art
+dig.mu2e.CeMLeadingLogMix1BB.MDC2025au_best_v1_3.001430_00000761.art

@@ -1,0 +1,11 @@
+# APR (AgnosticHelixFinder) minimum-hit / seed-gap settings relaxed for the reduced tracker
+# (helix_tuning_aprfinder.fcl). Changes every apr_ path: the helix finder is shared, so it
+# cannot be limited to one path. Alone it costs ~1.6x nominal APR_D0200 background (4-8x for
+# the non-D0200 paths); with calibrated time-division resolution the D0200 path falls back to
+# nominal. maxSeedLineGap 600: the dead station 7 opens a z gap.
+physics.producers.TrigAprHelixFinder.maxSeedLineGap     : 600  # 250
+physics.producers.TrigAprHelixFinder.maxNHitsRatio      : 3    # 1.5
+physics.producers.TrigAprHelixFinder.minNHelixStrawHits : 8    # 12
+physics.producers.TrigAprHelixFinder.minNHelixComboHits : 6    # 10
+physics.producers.TrigAprHelixFinder.minSeedCircleHits  : 5    # 7
+physics.producers.TrigAprHelixFinder.minFinalSeedHits   : 5    # 7

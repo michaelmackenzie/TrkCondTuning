@@ -1,0 +1,5 @@
+# APR finder phi-z line cuts loosened (test variant aprphiz2 = aprphiz1 + aprsegchi4):
+# maxPhiZResidual 3, segMultiplier 2, maxSegmentChi2 4. Self-contained.
+physics.producers.TrigAprHelixFinder.maxPhiZResidual : 3
+physics.producers.TrigAprHelixFinder.segMultiplier : 2
+physics.producers.TrigAprHelixFinder.maxSegmentChi2 : 4

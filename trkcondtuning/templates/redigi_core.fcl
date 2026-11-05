@@ -1,0 +1,125 @@
+#
+# TrkCondTuning template (port of trigger/reduced_tracker/redigi_core.fcl).
+# Re-digitize the tracker of an existing OnSpill digi file with the current conditions,
+# then re-run the trigger menu.  Avoids regenerating the (mixed) digi samples.
+#
+# The tracker digis are rebuilt from the StrawGasSteps kept by compressDigiMCs. These are only
+# the steps that made a digi in the original processing, so this is valid for conditions that
+# lower the hit efficiency (dead channels, lower gain/HV, higher thresholds), but not for
+# conditions that raise it. Calo and CRV digis are kept as they are.
+#
+# Only triggerable events (MC truth) are kept, as in OnSpillRetrigger, to avoid trigger bias.
+#
+#  Conditions are NOT set here: tct (fclgen.py) appends the condition, the settings and the
+#  job-specific overrides after this template, so the generated job fcl is self-contained.
+#
+#include "Offline/fcl/minimalMessageService.fcl"
+#include "Offline/fcl/standardServices.fcl"
+#include "Production/JobConfig/common/prolog.fcl"
+#include "Production/JobConfig/digitize/prolog.fcl"
+
+#include "mu2e-trig-config/core/trigProducers.fcl"
+#include "mu2e-trig-config/core/trigFilters.fcl"
+#include "mu2e-trig-config/core/trigRecoSequences.fcl"
+
+BEGIN_PROLOG
+TriggerableTrigger: {
+  module_type : TriggerResultsFilter
+  ProcessName : Digitize
+  TriggerNames : [ "TriggerableLHPath", "TriggerableTwoTrackPath", "TriggerableCaloPath" ]
+}
+# re-make the tracker digis at the start of each trigger path, then read the other inputs
+# (Prefetch, as in mu2e-trig-config/test/timingTest.fcl) so reading the data isn't charged to
+# the trigger modules in TimeTracker
+# The CFO producer of the menu (ProcessCFOData, renamed EWMProducer in newer mu2e-trig-config) is
+# not run: the MC input already holds the EventWindowMarker / proton bunch time products
+# (label EWMProducer), which Prefetch and the trigger modules read.
+TrigRecoSequences.cfoDataGen : [ TriggerableTrigger, makeSD, Prefetch ]
+END_PROLOG
+
+#include "mu2e-trig-config/core/trigSequences.fcl"
+#include "mu2e-trig-config/gen/trig_physMenuPSConfig_OnSpill.fcl"
+#include "mu2e-trig-config/gen/trig_physMenu_OnSpill.fcl"
+
+process_name: Redigitize
+
+source : {
+  module_type : RootInput
+  # compressDigiMCs products descend from the dropped digis; keep them
+  dropDescendantsOfDroppedBranches : false
+  inputCommands: [ "keep *",
+    # old tracker digis and their MC truth: rebuilt here
+    "drop mu2e::StrawDigis_*_*_*",
+    "drop mu2e::StrawDigiADCWaveforms_*_*_*",
+    "drop mu2e::StrawDigiMCs_*_*_*",
+    # old trigger output
+    "drop mu2e::HelixSeed*_*_*_*",
+    "drop mu2e::KalSeed*_*_*_*",
+    "drop mu2e::TriggerInfo_*_*_*",
+    "drop mu2e::CaloClusters_*_*_*",
+    "drop mu2e::TimeClusters_*_*_*",
+    "drop mu2e::CosmicTrackSeeds_*_*_*",
+    "drop mu2e::IntensityInfo*_*_*_*",
+    "drop mu2e::RecoCount_*_*_*",
+    "drop mu2e::PrescaleFilterFraction_*_*_Digitize" ]
+}
+
+services : @local::Services.SimAndReco
+
+physics : {
+  producers : {
+    @table::TrigProducers.producers
+    makeSD : @local::TrackerMC.DigiProducers.makeSD
+    Prefetch : {
+      module_type            : PrefetchDAQData
+      fetchCaloDigis         : true
+      fetchStrawDigis        : true
+      fetchCaloFragments     : false
+      fetchTrkFragments      : false
+      fetchAllFragments      : false
+      fetchEWM               : true
+      fetchPBT               : true
+      caloDigiCollectionTag  : "CaloDigiMaker"
+      strawDigiCollectionTag : "makeSD"
+      caloFragmentTag        : ""
+      trkFragmentTag         : ""
+      ewmTag                 : "EWMProducer"
+      pbtTag                 : "EWMProducer"
+      debugLevel             : 0
+    }
+  }
+  filters : {
+    @table::TrigFilters.filters
+    @table::Trig_physMenuPSConfig
+    TriggerableTrigger : @local::TriggerableTrigger
+  }
+  @table::TrigSequences
+  TriggerablePath : [ TriggerableTrigger ]
+  OutputPath : [ Output ]
+}
+physics.producers.makeSD.StrawGasStepModules : [ "compressDigiMCs" ]
+# physics.producers.makeSD.UseStatus is set from the Condition
+# don't remake digis from artdaq fragments
+physics.producers.TrigMakeSD : { module_type : NullProducer }
+# physics.trigger_paths is set by the job (the studied paths only, never the whole menu)
+
+outputs : @local::Digitize.Outputs
+outputs.Output.SelectEvents : [ TriggerablePath ]
+outputs.Output.outputCommands : [ @sequence::outputs.Output.outputCommands, "keep mu2e::StrawDigiMCs_makeSD_*_*" ]
+outputs.Output.fileName : "dig.owner.Redigitize.version.sequencer.art"
+end_paths : [ OutputPath ]
+
+#include "Production/JobConfig/common/epilog.fcl"
+#include "mu2e-trig-config/core/trigDigiInputsEpilog.fcl"
+
+# digitization conditions, as in Production/JobConfig/digitize/epilog.fcl
+services.SeedService.baseSeed : @local::Common.BaseSeed
+services.GeometryService.bFieldFile : "Offline/Mu2eG4/geom/bfgeom_reco_v01.txt"
+services.ProditionsService.alignedTracker.useDb : true
+services.ProditionsService.alignedTracker.verbose : 0
+services.ProditionsService.trackerStatus.Settings.useDb : true
+services.ProditionsService.trackerStatus.Settings.verbose : 0
+services.ProditionsService.strawElectronics.useDb : true
+services.ProditionsService.strawElectronics.verbose : 0
+services.ProditionsService.strawElectronics.overrideDbTimeOffsets : true
+

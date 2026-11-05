@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.art
+*.root
+*.db
+/work/
+*~

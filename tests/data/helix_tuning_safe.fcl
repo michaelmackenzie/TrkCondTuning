@@ -1,0 +1,63 @@
+#
+# Reduced tracker trigger settings with no measured background cost: CPR (CalHelixFinder)
+# minimum hits and the filter cuts of the cpr/apr TrkDe 75m70p, 75m70p_D0200, 80m70p and
+# 80m70p_D0200 paths (all share the trigger producers, so they cost little extra CPU).
+# Include after the trigger configuration. See notes.org for efficiencies and rates.
+#
+# CPR: CalHelixFinder
+physics.producers.TrigCalHelixFinderDe.HelixFinderAlg.minNHit       : 7  # 10
+physics.producers.TrigCalHelixFinderDe.HelixFinderAlg.maxNHitsRatio : 3  # 1.5
+physics.producers.TrigCalHelixFinderDe.minNHitsTimeCluster          : 7  # 10
+
+# filter cuts (nominal: 15 straw hits, hit ratio 0.4)
+# The hit ratio stays at 0.4: the status-aware HelixTool hit ratio (Offline branch
+# helixtool-tracker-status, HelixFilter useTrackerStatus : true) doesn't count dead straws as
+# expected hits, and 0.4 gave the same CE efficiency as 0.2 (removed 2026-10-14; results in
+# notes.org before then used 0.2).
+physics.filters.CprTrkDe75m70pTCFilter.minNStrawHits                      : 10
+physics.filters.CprTrkDe75m70pHSFilter.posHelicitySelection.minNStrawHits : 10
+physics.filters.CprTrkDe75m70pHSFilter.negHelicitySelection.minNStrawHits : 10
+physics.filters.CprTrkDe75m70pKSFilter.KalSeedCuts[0].minNStrawHits       : 10
+physics.filters.CprTrkDe75m70pKSFilter.KalSeedCuts[1].minNStrawHits       : 10
+
+physics.filters.CprTrkDe75m70pD0200TCFilter.minNStrawHits                      : 10
+physics.filters.CprTrkDe75m70pD0200HSFilter.posHelicitySelection.minNStrawHits : 10
+physics.filters.CprTrkDe75m70pD0200HSFilter.negHelicitySelection.minNStrawHits : 10
+physics.filters.CprTrkDe75m70pD0200KSFilter.KalSeedCuts[0].minNStrawHits       : 10
+physics.filters.CprTrkDe75m70pD0200KSFilter.KalSeedCuts[1].minNStrawHits       : 10
+
+physics.filters.CprTrkDe80m70pTCFilter.minNStrawHits                      : 10
+physics.filters.CprTrkDe80m70pHSFilter.posHelicitySelection.minNStrawHits : 10
+physics.filters.CprTrkDe80m70pHSFilter.negHelicitySelection.minNStrawHits : 10
+physics.filters.CprTrkDe80m70pKSFilter.KalSeedCuts[0].minNStrawHits       : 10
+physics.filters.CprTrkDe80m70pKSFilter.KalSeedCuts[1].minNStrawHits       : 10
+
+physics.filters.CprTrkDe80m70pD0200TCFilter.minNStrawHits                      : 10
+physics.filters.CprTrkDe80m70pD0200HSFilter.posHelicitySelection.minNStrawHits : 10
+physics.filters.CprTrkDe80m70pD0200HSFilter.negHelicitySelection.minNStrawHits : 10
+physics.filters.CprTrkDe80m70pD0200KSFilter.KalSeedCuts[0].minNStrawHits       : 10
+physics.filters.CprTrkDe80m70pD0200KSFilter.KalSeedCuts[1].minNStrawHits       : 10
+
+physics.filters.AprTrkDe75m70pTCFilter.minNStrawHits                      : 10
+physics.filters.AprTrkDe75m70pHSFilter.posHelicitySelection.minNStrawHits : 10
+physics.filters.AprTrkDe75m70pHSFilter.negHelicitySelection.minNStrawHits : 10
+physics.filters.AprTrkDe75m70pKSFilter.KalSeedCuts[0].minNStrawHits       : 10
+physics.filters.AprTrkDe75m70pKSFilter.KalSeedCuts[1].minNStrawHits       : 10
+
+physics.filters.AprTrkDe75m70pD0200TCFilter.minNStrawHits                      : 10
+physics.filters.AprTrkDe75m70pD0200HSFilter.posHelicitySelection.minNStrawHits : 10
+physics.filters.AprTrkDe75m70pD0200HSFilter.negHelicitySelection.minNStrawHits : 10
+physics.filters.AprTrkDe75m70pD0200KSFilter.KalSeedCuts[0].minNStrawHits       : 10
+physics.filters.AprTrkDe75m70pD0200KSFilter.KalSeedCuts[1].minNStrawHits       : 10
+
+physics.filters.AprTrkDe80m70pTCFilter.minNStrawHits                      : 10
+physics.filters.AprTrkDe80m70pHSFilter.posHelicitySelection.minNStrawHits : 10
+physics.filters.AprTrkDe80m70pHSFilter.negHelicitySelection.minNStrawHits : 10
+physics.filters.AprTrkDe80m70pKSFilter.KalSeedCuts[0].minNStrawHits       : 10
+physics.filters.AprTrkDe80m70pKSFilter.KalSeedCuts[1].minNStrawHits       : 10
+
+physics.filters.AprTrkDe80m70pD0200TCFilter.minNStrawHits                      : 10
+physics.filters.AprTrkDe80m70pD0200HSFilter.posHelicitySelection.minNStrawHits : 10
+physics.filters.AprTrkDe80m70pD0200HSFilter.negHelicitySelection.minNStrawHits : 10
+physics.filters.AprTrkDe80m70pD0200KSFilter.KalSeedCuts[0].minNStrawHits       : 10
+physics.filters.AprTrkDe80m70pD0200KSFilter.KalSeedCuts[1].minNStrawHits       : 10

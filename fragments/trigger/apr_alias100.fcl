@@ -1,0 +1,5 @@
+# APR finder: 2pi phi-z alias test across the largest helix-hit z gap (>= 100 mm), keeping the
+# lowest-chi2 line. About 1/3 of the wrong-lambda helices with the reduced tracker are such
+# aliases (a short seed segment extrapolated by one extra turn). Needs the Offline option
+# AgnosticHelixFinder minAliasGap (branch apr-helix-finding).
+physics.producers.TrigAprHelixFinder.minAliasGap : 100

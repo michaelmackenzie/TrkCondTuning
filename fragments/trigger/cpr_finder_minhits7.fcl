@@ -1,0 +1,7 @@
+# CPR (CalHelixFinder) minimum hits relaxed for a tracker with fewer hits per CE track.
+# From helix_tuning_safe.fcl of the 2026-10 reduced-tracker study (no measured background
+# cost; the CPR background stayed below nominal). Together with the 15 -> 10 straw-hit filter
+# cuts (knob in the study) this is the 'safe' tuning.
+physics.producers.TrigCalHelixFinderDe.HelixFinderAlg.minNHit       : 7  # 10
+physics.producers.TrigCalHelixFinderDe.HelixFinderAlg.maxNHitsRatio : 3  # 1.5
+physics.producers.TrigCalHelixFinderDe.minNHitsTimeCluster          : 7  # 10

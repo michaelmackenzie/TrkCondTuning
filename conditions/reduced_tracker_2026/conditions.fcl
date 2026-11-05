@@ -1,0 +1,7 @@
+# Reduced-tracker (2026 commissioning) conditions: lower gas gain / higher threshold noise.
+# Applied to the re-digitization and the reconstruction (ProditionsService); the dead
+# straws and the DB purpose/version come from Condition (Sim_best v1_5 + Sim_commissioning.txt).
+# Original: main/trigger/reduced_tracker/Sim_commissioning.fcl (DbService lines dropped).
+services.ProditionsService.strawDrift.wireVoltage : 1400
+services.ProditionsService.strawPhysics.gasGain : 5.53e4
+services.ProditionsService.strawElectronics.thresholdAnalogNoise : 3.5

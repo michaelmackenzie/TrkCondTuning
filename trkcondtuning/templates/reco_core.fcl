@@ -1,0 +1,22 @@
+#
+# TrkCondTuning template (port of trigger/reduced_tracker/reco_core.fcl + reco_mctags.fcl).
+# Offline OnSpill reconstruction with MC truth (Production recoMC) of a re-digitized file
+# (redigi step output). Conditions and settings are appended by tct (fclgen.py).
+#
+#include "Production/JobConfig/recoMC/OnSpill.fcl"
+
+# Re-digitized files have their StrawDigiMCs under the makeSD label, not compressDigiMCs:
+# point every StrawDigiMC input of the OnSpill recoMC configuration there.
+physics.producers.SelectReco.StrawDigiMCCollection                   : "makeSD"
+physics.producers.compressRecoMCs.strawDigiMCTag                     : "makeSD"
+physics.producers.ComboHitFilter.sdmcCollTag                         : "makeSD"
+physics.producers.DeltaFinder.sdmcCollTag                            : "makeSD"
+physics.producers.flagPH.sdmcCollTag                                 : "makeSD"
+physics.analyzers.LHCompressionCheck.oldStrawDigiMCTag               : "makeSD"
+physics.analyzers.CHCompressionCheck.oldStrawDigiMCTag               : "makeSD"
+physics.analyzers.KLCompressionCheck.oldStrawDigiMCTag               : "makeSD"
+# diagnostics only (used with diagLevel > 0)
+physics.producers.CalHelixFinderDe.diagPlugin.mcUtils.strawDigiMCCollTag : "makeSD"
+physics.producers.DeltaFinder.diagPlugin.mcUtils.strawDigiMCCollTag      : "makeSD"
+physics.producers.TZClusterFinder.diagPlugin.mcUtils.strawDigiMCCollTag  : "makeSD"
+physics.producers.flagPH.diagPlugin.mcUtils.strawDigiMCCollTag           : "makeSD"

@@ -1,0 +1,6 @@
+# APR finder keeps the best (most straw hits) of up to 3 helix candidates per search instead
+# of the first; a candidate with >= 20 straw hits is saved at once. Needs the Offline
+# AgnosticHelixFinder options maxHelixCandidates / acceptHelixStrawHits (Offline branch
+# apr-helix-finding). Part of the 2026-10-14 re-tuned APR finder; prerequisite of apr_tgtrep100.
+physics.producers.TrigAprHelixFinder.maxHelixCandidates : 3
+physics.producers.TrigAprHelixFinder.acceptHelixStrawHits : 20

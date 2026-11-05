@@ -1,0 +1,7 @@
+#
+# TrkCondTuning template: EventNtuple of a reco (mcs) file, standard mixed-sample
+# configuration. Trigger bits (trig_*) are taken from the re-digitization step (process
+# Redigitize), so they reflect the condition and trigger settings that step ran with.
+#
+#include "EventNtuple/fcl/from_mcs-mixed.fcl"
+physics.analyzers.EventNtuple.TriggerProcessName : "Redigitize"

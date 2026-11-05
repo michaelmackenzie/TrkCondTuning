@@ -1,0 +1,5 @@
+#!/bin/bash
+# thin wrapper: python3 -m trkcondtuning.cli
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export PYTHONPATH="$REPO${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 -m trkcondtuning.cli "$@"

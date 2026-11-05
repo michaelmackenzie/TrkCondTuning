@@ -1,0 +1,23 @@
+#
+# Looser Offline De time-cluster / helix finding (AgnosticPatRec, CalPatRec, TrkPatRec,
+# helix merging) for a tracker with fewer hits per track, mirroring the trigger tuning.
+# 2026-10 reduced tracker: Offline CE found 63.3% -> 69.0% (nominal 90.5%); with the
+# calibrated straw response 71.5%. Original: reco_helix_tuning.fcl.
+#
+# AgnosticPatRec
+physics.producers.TZClusterFinder.clusterThresh            : 10   # 15
+physics.producers.AgnosticHelixFinder.maxSeedLineGap       : 600  # 250
+physics.producers.AgnosticHelixFinder.minNHelixStrawHits   : 8    # 12
+physics.producers.AgnosticHelixFinder.minNHelixComboHits   : 6    # 10
+physics.producers.AgnosticHelixFinder.minSeedCircleHits    : 5    # 7
+physics.producers.AgnosticHelixFinder.minFinalSeedHits     : 5    # 7
+# CalPatRec
+physics.producers.CalTimePeakFinderDe.MinNHits             : 7    # 10
+physics.producers.CalHelixFinderDe.HelixFinderAlg.minNHit  : 7    # 10
+physics.producers.CalHelixFinderDe.minNHitsTimeCluster     : 7    # 10
+# TrkPatRec
+physics.producers.TimeClusterFinderDe.MinNHits             : 7    # 10
+physics.producers.HelixFinderDe.MinNStrawHits              : 7    # 10
+physics.producers.HelixFinderDe.HelixFitter.minNStrawHits  : 7    # 10
+# helix merging
+physics.producers.MHDe.MinNHitOverlap                      : 7    # 10
