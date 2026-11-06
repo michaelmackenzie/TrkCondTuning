@@ -9,6 +9,9 @@ tct: command-line interface.
   tct evaluate STUDY [--configs ...]             (trkcondtuning.report)
   tct report STUDY [--configs ...]               (trkcondtuning.report)
   tct check STUDY --reference summary.json       (trkcondtuning.report)
+  tct conditions STUDY [--configs ...] [--add OTHER_STUDY:CONFIG ...] [--run N]
+                                                 (trkcondtuning.conditions: tracker tables, gain,
+                                                 response; re-digitization validity vs nominal)
 STUDY: a study file or a name under studies/.
 """
 from __future__ import annotations
@@ -178,6 +181,29 @@ def cmd_check(args) -> None:
     print(res)
 
 
+def cmd_conditions(args) -> None:
+    from . import conditions
+    study = load_study(args.study)
+    wd = os.path.abspath(args.workdir or default_workdir(study))
+    os.makedirs(wd, exist_ok=True)
+    env = envmod.mu2e_env(workdir=wd)
+    cfgs = [(c.name, c) for c in _configs(study, args.configs, wd)]
+    if cfgs[0][1] is not study.nominal:
+        cfgs.insert(0, (study.nominal.name, study.nominal))   # reference for the redigi checks
+    for spec in args.add or []:
+        other, _, name = spec.partition(":")
+        ostudy = load_study(other)
+        c = {x.name: x for x in ostudy.configs()}.get(name or ostudy.baseline.name)
+        if c is None:
+            sys.exit(f"unknown config {name} in {other}")
+        cfgs.append((f"{ostudy.name}:{c.name}", c))
+    run = args.run or conditions.sample_run(study)
+    res = conditions.compare(cfgs, run, env, wd, input_use_status=args.input_use_status)
+    j, m = conditions.write(res, wd)
+    print(open(m).read())
+    print(f"written: {j}\n         {m}")
+
+
 def main(argv: Optional[List[str]] = None) -> None:
     ap = argparse.ArgumentParser(prog="tct", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -228,6 +254,16 @@ def main(argv: Optional[List[str]] = None) -> None:
     common(p)
     p.add_argument("--reference", required=True)
     p.set_defaults(func=cmd_check)
+
+    p = sub.add_parser("conditions", help="compare the tracker conditions of the configurations "
+                       "(DB tables, gain/noise, straw response) and check re-digitization validity")
+    common(p, True)
+    p.add_argument("--add", nargs="+", metavar="STUDY:CONFIG",
+                   help="configurations of other studies to compare with (CONFIG default: baseline)")
+    p.add_argument("--run", type=int, help="run for the DB IOVs (default: from the sample file names)")
+    p.add_argument("--input-use-status", action="store_true",
+                   help="the inputs were digitized with UseStatus (production: no)")
+    p.set_defaults(func=cmd_conditions)
 
     args = ap.parse_args(argv)
     args.func(args)

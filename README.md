@@ -49,19 +49,32 @@ tct report   reduced_tracker_2026_10                # results/report.md, summary
 tct status   reduced_tracker_2026_10
 tct fcl      reduced_tracker_2026_10 --config reduced --kind trig --sample CeM   # inspect a job fcl
 tct check    reduced_tracker_2026_10 --reference results/reduced_tracker_2026_10/summary.json
+tct conditions reduced_tracker_2026_v02 --add reduced_tracker_2026_10   # compare tracker conditions
 ```
+
+`tct conditions` compares the conditions of the study's configurations (and of other studies'
+with `--add STUDY:CONFIG`): dead straws (TrackerStatus noSignal), NoHV panels, preamp thresholds,
+reco vs sim straw alignment, gas gain / noise / HV and the straw response, from the DB tables
+covering the samples' run plus text tables and fcl overrides. It also flags anything that could
+raise the hit efficiency with respect to nominal (lower thresholds, higher gain, lower noise),
+which makes the re-digitization biased: then run a closure test (direct digitization vs
+re-digitization of the same events).
 
 The work directory (default `$TCT_WORKDIR/<study>`, else `/exp/mu2e/data/users/$USER/tct/<study>`)
 holds one directory per job with a self-contained `job.fcl`, `cmd.sh` (re-runnable by
 hand), the log and the outputs. Jobs are cached by the hash of their fcl, inputs and command,
-so re-running a command only runs what changed. `--cores` is capped at 20 (shared node);
-every mu2e process is single-threaded.
+so re-running a command only runs what changed. `--cores` is capped at 20 (shared node) and counts
+your other mu2e processes on the node too (a job waits while they + the running jobs reach
+`--cores`); every mu2e process is single-threaded. Batches are multiples of 10 jobs, so
+`--cores 20` avoids a partial second wave.
 
-**Long runs:** a full study takes hours. Start it outside your login/IDE session, which can
-be torn down with every process in it, e.g. as a systemd user unit:
-`systemd-run --user --collect --unit=tct bash -c "source .../setup.sh; tct run ... > log 2>&1"`.
+**Long runs:** a full study takes hours. Detach it from your login/IDE session, e.g.
+`setsid nohup chain.sh > log 2>&1 < /dev/null &` (chain.sh: `source .../setup.sh; tct run ...`). This
+survives logout where logind does not kill user processes (`KillUserProcesses=no`, the default).
+A `systemd-run --user` unit does NOT survive unless lingering is enabled for your account
+(`loginctl show-user $USER -p Linger`): the user manager stops with your last login session.
 Put the work directory on a disk with room (`export TCT_WORKDIR=...`): each Offline job writes
-~2 GB of temporary art files (deleted after the ntuple), so with 16-18 parallel jobs it needs
+~2 GB of temporary art files (deleted after the ntuple), so with 16-20 parallel jobs it needs
 ~40 GB. On mu2esrv01, the local `/scratch/mu2e/users/$USER` is a good choice; a full
 `/exp/mu2e/data` quota makes every job fail at once.
 

@@ -336,7 +336,7 @@ class Study:
 
 def load_study(path: str) -> Study:
     """Load STUDY from a study file (a path, or a name under studies/)."""
-    if not os.path.exists(path):
+    if not os.path.isfile(path):   # a work directory of the same name is not a study
         cand = os.path.join(REPO, "studies", path if path.endswith(".py") else path + ".py")
         if os.path.exists(cand):
             path = cand

@@ -2,6 +2,8 @@
 Local job queue: each job is a directory with job.fcl / inputs.txt / cmd.sh; the runner runs
 the not-cached jobs in parallel (bash cmd.sh, stdout+stderr -> job.log), writes status.json,
 and reports. Shared interactive node: at most 20 cores in total (hard refusal), default 16.
+The cap counts the user's OTHER mu2e processes on the node too (other sessions): a job starts only
+while (other mu2e processes of $USER) + (running jobs of this runner) < max_cores.
 """
 from __future__ import annotations
 
@@ -20,6 +22,23 @@ from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional
 
 HARD_MAX_CORES = 20
+NODE_POLL_S = 30
+
+
+def other_mu2e_processes(mine: set) -> int:
+    """mu2e processes of this user whose session is not one of this runner's jobs (each job runs
+    in its own session, sid = pid of its cmd.sh). Each counts as one core (single-threaded)."""
+    try:
+        out = subprocess.run(["ps", "-u", str(os.getuid()), "-o", "sid=,comm="], capture_output=True,
+                             text=True, timeout=30).stdout
+    except (OSError, subprocess.SubprocessError):
+        return 0
+    n = 0
+    for line in out.splitlines():
+        f = line.split()
+        if len(f) == 2 and f[1] == "mu2e" and int(f[0]) not in mine:
+            n += 1
+    return n
 DONE_MARKER = "Art has completed and will exit with status 0"
 
 
@@ -104,7 +123,8 @@ def log_ok(logpath: str, nsteps: int) -> bool:
 
 class Runner:
     def __init__(self, max_cores: int = 16, env: Optional[Dict[str, str]] = None,
-                 dry_run: bool = False, progress: Callable[[str], None] = None):
+                 dry_run: bool = False, progress: Callable[[str], None] = None,
+                 node_aware: bool = True):
         if max_cores > HARD_MAX_CORES:
             raise ValueError(f"refusing max_cores={max_cores}: never more than {HARD_MAX_CORES} cores "
                              "on the shared mu2e node (count cores, not jobs)")
@@ -116,6 +136,8 @@ class Runner:
         self._print = progress or (lambda s: print(s, flush=True))
         self._lock = threading.Lock()
         self._procs: List[subprocess.Popen] = []
+        self.node_aware = node_aware   # count the user's other mu2e processes against max_cores
+        self._waiting = False
 
     # ------------------------------------------------------------------ one job
     def _run_one(self, job: Job) -> JobResult:
@@ -127,10 +149,25 @@ class Runner:
         t0 = time.time()
         logpath = os.path.join(job.dir, "job.log")
         with open(logpath, "w") as log:
-            p = subprocess.Popen(["bash", os.path.join(job.dir, "cmd.sh")], cwd=job.dir, env=self.env,
-                                 stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
-            with self._lock:
-                self._procs.append(p)
+            while True:
+                with self._lock:
+                    others = (other_mu2e_processes({q.pid for q in self._procs})
+                              if self.node_aware else 0)
+                    if others + len(self._procs) < self.max_cores:
+                        if self._waiting:
+                            self._print(f"node: {others} other mu2e processes, resuming")
+                            self._waiting = False
+                        t0 = time.time()
+                        p = subprocess.Popen(["bash", os.path.join(job.dir, "cmd.sh")], cwd=job.dir,
+                                             env=self.env, stdout=log, stderr=subprocess.STDOUT,
+                                             start_new_session=True)
+                        self._procs.append(p)
+                        break
+                    if not self._waiting:
+                        self._print(f"node: {others} other mu2e processes of this user + "
+                                    f"{len(self._procs)} running jobs >= {self.max_cores} cores; waiting")
+                        self._waiting = True
+                time.sleep(NODE_POLL_S)
             code = p.wait()
             with self._lock:
                 self._procs.remove(p)
