@@ -89,5 +89,5 @@ STUDY = Study(
     trigger_candidates=[nsh10_cpr, nsh10_apr, cpr_finder, apr_cand3a20, apr_tgtrep100],
     reco_candidates=[offline_loose],
     offline=OfflineSelection(),
-    explore=ExploreSettings(),       # thresholds: min_gain, min_z, rate_factor, cpu_factor, ...
+    explore=ExploreSettings(rate_cost_hz=2000.),   # background Hz worth +100% signal (+100 Hz ~ +5%); min_gain, min_z, rate_max_hz, cpu_factor, ...
 )

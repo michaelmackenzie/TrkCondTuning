@@ -291,6 +291,31 @@ def test_explore_json_schema():
     assert r2["proposed"]["added"] == ["r", "a"]
 
 
+def test_rate_tradeoff_accepts_rate_for_signal():
+    # B: 1000 microbunches, Hz per event = 1/1695 ns x duty / 1000
+    env = FakeEnv()
+    env.trig_gain = {"big": range(300, 400), "small": range(400, 460)}   # +10%, +6%
+    env.bkg = {"big": 5}                                                 # +5 background events
+    hz = 1e9 / Sample("B", "b.txt", role="background").microbunch_ns * \
+        Sample("B", "b.txt", role="background").duty_factor / env.N
+    cost = 30 * hz / 0.02          # 30 events' worth of rate per 2% efficiency
+    study = make_study([T("big"), T("small")], [], rate_cost_hz=cost)
+    _, r = run_explore(study, env)
+    rd = trig_rounds(r)[0]
+    d = {c["name"]: c for c in rd["candidates"]}
+    assert abs(d["big"]["background"]["delta_hz"] - 5 * hz) < 1e-6 * hz
+    assert d["big"]["utility"] > 0.06                    # 0.10 - 5/1500
+    assert rd["accepted"] == "big", rd
+    # the per-path mode rejects it (15 > 10 + sqrt(10))
+    study = make_study([T("big"), T("small")], [], rate_mode="per_path")
+    _, r = run_explore(study, env)
+    assert trig_rounds(r)[0]["accepted"] == "small"
+    # a total-rate ceiling below the candidate's rate rejects it too
+    study = make_study([T("big"), T("small")], [], rate_cost_hz=cost, rate_max_hz=12 * hz)
+    _, r = run_explore(study, env)
+    assert trig_rounds(r)[0]["accepted"] == "small"
+
+
 if __name__ == "__main__":
     n = 0
     for k, v in sorted(globals().items()):

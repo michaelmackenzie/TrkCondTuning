@@ -15,8 +15,12 @@ all eligible trigger/both-scope candidates at once (one runner submission). Obje
 signal samples and objective_paths expressions of the efficiency. Candidates with gain >= min_gain
 and z >= min_z are screened on the background samples, in order of decreasing gain, `shortlist`
 at a time (more batches only if the whole batch fails); the best passing candidate is accepted.
-Rate constraint, per rate path: N(cand) <= max(N(nominal), N(current)) * rate_factor +
-rate_slack_sigma * sqrt(N(nominal)), N summed over the background samples.
+Background (ExploreSettings.rate_mode): "tradeoff" (default) trades the objective gain against
+the increase of the total background rate (OR of the rate paths, paired microbunches):
+pass if dR + rate_slack_sigma * err(dR) <= gain * rate_cost_hz (and total <= rate_max_hz if set);
+the best passing candidate is the one with the largest gain - dR / rate_cost_hz. "per_path":
+N(cand) <= max(N(nominal), N(current)) * rate_factor + rate_slack_sigma * sqrt(N(nominal)) for
+every rate path, N summed over the background samples; best = largest gain.
 
 Finally the CPU time of nominal and the proposal ('timing' jobs) is compared (cpu_factor).
 
@@ -200,22 +204,60 @@ class _BkgCache:
         self.study, self.wd, self.memo = study, wd, {}
 
     def counts(self, cfg: Config) -> Dict:
+        """{"events", "n": {path: N}, "rate_hz": {path: Hz}, "total_n", "total_hz",
+        "total_bits": {sample: {event: bool}}, "hz_per_event": {sample: Hz}}; total = OR of
+        the rate paths."""
         if cfg.name not in self.memo:
             paths = self.study.get_rate_paths()
             plist = Study.all_paths(paths)
             n = {p: 0 for p in plist}
             rate = {p: 0.0 for p in plist}
-            events = 0
+            events, tot_n, tot_hz, tbits, hz_ev = 0, 0, 0.0, {}, {}
             for s in _background(self.study):
                 bits = trigger_bits(self.wd, cfg, s, plist)
                 events += len(bits)
+                h = (1e9 / s.microbunch_ns) * s.duty_factor / len(bits) if bits else 0.0
+                hz_ev[s.name] = h
                 for p in plist:
                     k = sum(1 for v in bits.values() if v[p])
                     n[p] += k
-                    if bits:
-                        rate[p] += k / len(bits) * (1e9 / s.microbunch_ns) * s.duty_factor
-            self.memo[cfg.name] = {"events": events, "n": n, "rate_hz": rate}
+                    rate[p] += k * h
+                tbits[s.name] = {k: any(v[p] for p in plist) for k, v in bits.items()}
+                kt = sum(tbits[s.name].values())
+                tot_n += kt
+                tot_hz += kt * h
+            self.memo[cfg.name] = {"events": events, "n": n, "rate_hz": rate, "total_n": tot_n,
+                                   "total_hz": tot_hz, "total_bits": tbits, "hz_per_event": hz_ev}
         return self.memo[cfg.name]
+
+
+def rate_delta(cand: Dict, cur: Dict) -> Tuple[float, float]:
+    """(total rate increase [Hz], its error [Hz]) from the paired microbunches: per sample,
+    (gained - lost) and sqrt(gained + lost) passing events, times Hz per event."""
+    d = var = 0.0
+    for s, a in cur["total_bits"].items():
+        b = cand["total_bits"].get(s, {})
+        h = cur["hz_per_event"][s]
+        _, g, l = paired_counts(a, b)
+        d += (g - l) * h
+        var += (g + l) * h * h
+    return d, math.sqrt(var)
+
+
+def tradeoff_check(ex, gain: float, cand: Dict, cur: Dict) -> Tuple[bool, Dict, List[str]]:
+    """Trade-off rate check (rate_mode 'tradeoff'); returns (ok, info, reasons)."""
+    d, err = rate_delta(cand, cur)
+    hi = d + ex.rate_slack_sigma * err
+    allowed = max(gain, 0.0) * ex.rate_cost_hz
+    info = {"total_hz": cand["total_hz"], "current_total_hz": cur["total_hz"], "delta_hz": d,
+            "delta_err_hz": err, "allowed_delta_hz": allowed,
+            "utility": gain - d / ex.rate_cost_hz}
+    bad = []
+    if hi > allowed:
+        bad.append(f"total rate +{d:.1f} ± {err:.1f} Hz > {allowed:.1f} Hz allowed for gain {gain:+.4f}")
+    if ex.rate_max_hz is not None and cand["total_hz"] > ex.rate_max_hz:
+        bad.append(f"total rate {cand['total_hz']:.1f} Hz > rate_max_hz {ex.rate_max_hz}")
+    return not bad, info, bad
 
 
 def rate_check(ex, n_cand: Dict, n_cur: Dict, n_nom: Dict) -> Tuple[bool, Dict, List[str]]:
@@ -268,17 +310,27 @@ def _trig_round(study, wd, runner, current, cands, rnd, bkg: _BkgCache, nominal:
         batch = passing[i:i + max(1, ex.shortlist)]
         bcfgs = [cfgs[r["name"]] for r in batch]
         run_jobs(study, [nominal, current] + bcfgs, ["trig"], wd, runner, _background(study))
-        n_nom, n_cur = bkg.counts(nominal)["n"], bkg.counts(current)["n"]
+        cnom, ccur = bkg.counts(nominal), bkg.counts(current)
+        n_nom, n_cur = cnom["n"], ccur["n"]
         for r in batch:
             bc = bkg.counts(cfgs[r["name"]])
             ok, allowed, bad = rate_check(ex, bc["n"], n_cur, n_nom)
             r["background"] = {"n": bc["n"], "rate_hz": bc["rate_hz"], "n_current": n_cur,
-                               "n_nominal": n_nom, "allowed": allowed, "events": bc["events"]}
+                               "n_nominal": n_nom, "allowed": allowed, "events": bc["events"],
+                               "total_hz": bc["total_hz"], "nominal_total_hz": cnom["total_hz"]}
+            if ex.rate_mode == "tradeoff":
+                if bad:
+                    r["background"]["per_path_above"] = bad    # reported, not a cut
+                ok, info, bad = tradeoff_check(ex, r["gain"], bc, ccur)
+                r["background"].update(info)
+                r["utility"] = info["utility"]
+            elif ex.rate_mode != "per_path":
+                raise ValueError(f"unknown rate_mode {ex.rate_mode!r}")
             if not ok:
                 r["status"], r["reason"] = "fail", "rate: " + "; ".join(bad)
         ok_batch = [r for r in batch if r["status"] == "pass"]
         if ok_batch:
-            accepted = max(ok_batch, key=lambda r: r["gain"])
+            accepted = max(ok_batch, key=lambda r: r.get("utility", r["gain"]))
             break
     return cur_obj, records, accepted
 
@@ -400,6 +452,10 @@ def to_markdown(r: Dict) -> str:
                 L.append(f"- {c['name']}: skipped ({c['reason']})")
                 continue
             line = f"- {c['name']}: gain {c['gain']:+.4f}, z {c['z']:.1f} [{c['n_gain']}/{c['n_loss']}] -> {c['status']}"
+            b = c.get("background") or {}
+            if "delta_hz" in b:
+                line += (f"; bkg total {b['total_hz']:.1f} Hz ({b['delta_hz']:+.1f} ± {b['delta_err_hz']:.1f}, "
+                         f"allowed +{b['allowed_delta_hz']:.1f}), utility {b['utility']:+.4f}")
             if c.get("reason"):
                 line += f" ({c['reason']})"
             L.append(line)

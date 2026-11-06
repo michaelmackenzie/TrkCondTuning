@@ -22,7 +22,7 @@ detector condition (e.g. an official realistic-conditions setup) with repeatable
   apr_TrkDe_80m70p_D0200, which has 5 nominal events in 200k microbunches (gap 1 below).
 
 ## Known gaps (next steps)
-1. **Rate constraint is per path with few events.** Each rate path must stay below
+1. **(addressed 2026-11-06: rate_mode "tradeoff", default; re-run pending)** **Rate constraint is per path with few events.** Each rate path must stay below
    max(nominal, current) + 1 sigma; with 0-36 passing events in 200k NoPrimary microbunches a
    path with 5 nominal events vetoes candidates while the total rate is at 28% of nominal. Options:
    a total-rate budget (OR of the rate paths) as the main constraint, per-path checks only as
@@ -200,6 +200,10 @@ def report(study, wd, configs) -> str      # results/report.md + summary.json
 - Paired significance for efficiency gains uses per-event bits (McNemar).
 
 ## Work log
+- 2026-11-06 (later): background as a trade-off, not a per-path veto (user: ~100 Hz is acceptable
+  for +5% signal): ExploreSettings.rate_mode "tradeoff" with rate_cost_hz = 2000 Hz per unit
+  efficiency, paired total-rate change with 1 sigma allowance, optional rate_max_hz; ranking by
+  utility gain - dR / rate_cost_hz. Old behaviour as rate_mode "per_path". Exploration re-run.
 - 2026-11-06: full chain finished (run -> explore -> run proposed -> report). Report fixes:
   cached metric JSONs were reused although the jobs of a configuration had changed (a partial
   report during the run left the references without Offline/timing results); now re-evaluated

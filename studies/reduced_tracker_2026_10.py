@@ -127,6 +127,6 @@ STUDY = Study(
     ],
     reco_candidates=[offline_helix_loose, tdres20, calib],
     offline=OfflineSelection(),
-    explore=ExploreSettings(),
+    explore=ExploreSettings(rate_mode="tradeoff", rate_cost_hz=2000.),   # +100 Hz is worth +5% signal
     timing_events=16000,
 )

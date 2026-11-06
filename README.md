@@ -103,8 +103,12 @@ Greedy forward selection (`trkcondtuning/explore.py`, parameters in `ExploreSett
   reconstructable efficiency, with a paired (McNemar, same events) significance cut and a
   resolution constraint;
 - **trigger phase**: add the trigger candidate that most increases the objective-path
-  efficiency, shortlisted candidates are checked on background: every rate path must stay at or
-  below max(nominal, current) (plus a statistical allowance);
+  efficiency, trading signal against background: the total background rate (OR of the rate
+  paths, same microbunches) may rise by up to `gain x rate_cost_hz` (default 2000 Hz: +100 Hz
+  is worth +5% signal; +1 sigma allowance), optionally capped at `rate_max_hz`; the passing
+  candidate with the largest `gain - dRate / rate_cost_hz` is accepted. Per-path rates are
+  reported. `rate_mode="per_path"` restores the strict check (every rate path at or below
+  max(nominal, current) plus 1 sigma);
 - the proposal's trigger CPU time is compared with nominal.
 
 Limitations: a candidate whose prerequisite shows no gain on its own is never tried (bundle

@@ -208,15 +208,24 @@ class ExploreSettings:
     Trigger phase: from the reco-phase result, add the trigger-scope candidate that most
     increases the trigger objective (objective_paths efficiency of MC-triggerable events,
     averaged over the signal samples) by >= min_gain with z >= min_z, screening up to
-    shortlist candidates on background; a candidate passes when, for every rate path,
-    N_bkg(candidate) <= max(N_bkg(nominal), N_bkg(current)) * rate_factor + rate_slack_sigma *
-    sqrt(N_bkg(nominal)) (paired, same background events).
+    shortlist candidates on background. Background (rate_mode):
+      "tradeoff" (default): signal efficiency is traded against the total background rate (OR
+        of the rate paths, paired on the same microbunches). rate_cost_hz = rate increase worth
+        a gain of 1.0 in efficiency (2000 Hz: +100 Hz is worth +5%). A candidate passes when
+        dR_hi <= gain * rate_cost_hz, dR_hi = rate increase + rate_slack_sigma x its (McNemar)
+        error, and (if set) the total rate stays <= rate_max_hz. Candidates are ranked by the
+        utility gain - dR / rate_cost_hz. Per-path rates are reported, not cut on.
+      "per_path": every rate path must keep N_bkg(candidate) <= max(N_bkg(nominal),
+        N_bkg(current)) * rate_factor + rate_slack_sigma * sqrt(N_bkg(nominal)); ranked by gain.
     CPU: the proposal's trigger time must be <= cpu_factor x nominal (checked at the end;
     reported, the proposal is flagged if it fails).
     """
     min_gain: float = 0.005
     min_z: float = 2.0
     max_res_worsening: float = 0.10
+    rate_mode: str = "tradeoff"
+    rate_cost_hz: float = 2000.0
+    rate_max_hz: Optional[float] = None
     rate_factor: float = 1.0
     rate_slack_sigma: float = 1.0
     cpu_factor: float = 1.2
