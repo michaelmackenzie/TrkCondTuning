@@ -12,23 +12,27 @@ detector condition (e.g. an official realistic-conditions setup) with repeatable
 - Closure with the original study (notes.org): CeM nominal found 90.8% (90.5), CPR 72.8% (72.6),
   reduced CPR 37.8% (37.4), recommended OR 71.5% (73.1), CeP recommended OR 50.8% (50.8); the
   re-digitized trigger counts of the nominal CeM jobs are identical to the old redigi log.
-- Proposal (greedy, default ExploreSettings): reco `calib` + `offline_helix_loose`; trigger
-  `nsh10_cpr`, `cpr_finder_minhits7`, `nsh10_apr`. CeM objective OR 65.6% (reduced 45.8,
-  hand-tuned recommended 71.5, nominal 85.9); background OR 9.5 Hz (x0.28 of nominal; the
-  recommended config is x1.03); trigger CPU x0.74 of nominal. Offline is the same as the
-  recommended config (same reco settings).
-- The proposal is more conservative than the hand-tuned one: the APR recoveries
-  (`apr_finder_minima` +2.5%, `apr_phiz2` +1.4%) fail the per-path rate check on
-  apr_TrkDe_80m70p_D0200, which has 5 nominal events in 200k microbunches (gap 1 below).
+- Proposal (greedy; background as a trade-off, rate_cost_hz 2000 Hz per unit efficiency, i.e.
+  +100 Hz is worth +5% signal): reco `calib` + `offline_helix_loose`; trigger `nsh10_cpr`,
+  `cpr_finder_minhits7`, `nsh10_apr`, `apr_phiz2`, `apr_finder_minima`, `apr_cand3a20`,
+  `apr_tgtrep100` = the hand-tuned recommendation without `apr_alias100` and `cprchi2` (each
+  < 0.5% gain). CeM objective OR 71.2% (recommended 71.5, reduced 45.8, nominal 85.9), CeP 50.1%
+  (50.8); background OR 35.3 Hz (x1.03 of nominal, same as recommended); trigger CPU x1.16 of
+  nominal. `apr_cand3a20` gains +1.1% only after `apr_finder_minima` (+0.2% before), so greedy
+  reached the prerequisite chain without a hand-made bundle. `apr_ks8` (known bad) is rejected:
+  +50 Hz for +0.75%. apr_TrkDe_80m70p_D0200 alone is x4.6 nominal (22 Hz; the open issue of the
+  original study), accepted because the total rate is what is constrained.
+- First run with the per-path veto (superseded): proposal stopped after `nsh10_apr` at CeM OR 65.6%,
+  background x0.28, because apr_TrkDe_80m70p_D0200 (5 nominal events) vetoed the APR settings.
 
 ## Known gaps (next steps)
-1. **(addressed 2026-11-06: rate_mode "tradeoff", default; re-run pending)** **Rate constraint is per path with few events.** Each rate path must stay below
+1. **(addressed 2026-11-06: rate_mode "tradeoff", default)** **Rate constraint was per path with few events.** Each rate path must stay below
    max(nominal, current) + 1 sigma; with 0-36 passing events in 200k NoPrimary microbunches a
    path with 5 nominal events vetoes candidates while the total rate is at 28% of nominal. Options:
    a total-rate budget (OR of the rate paths) as the main constraint, per-path checks only as
    warnings, and more NoPrimary statistics (more groups) before trusting rate decisions.
-2. **Greedy selection misses combinations**: a setting whose prerequisite gains nothing on its
-   own is never tried (`apr_tgtrep100` needs `apr_cand3a20`, +0.2%). Bundles must be added by hand
+2. **Greedy selection can miss combinations** (here it did not: apr_cand3a20 became worthwhile after
+   apr_finder_minima): a setting whose prerequisite gains nothing on its own is never tried (`apr_tgtrep100` needs `apr_cand3a20`, +0.2%). Bundles must be added by hand
    (`knobs.combine`); no pairwise or backward-elimination pass.
 3. **Candidates are discrete, hand-written fragments.** `knobs.py` can generate cut variations
    but there is no scan driver over a cut value; the menu of candidates decides what can be found.
@@ -203,7 +207,9 @@ def report(study, wd, configs) -> str      # results/report.md + summary.json
 - 2026-11-06 (later): background as a trade-off, not a per-path veto (user: ~100 Hz is acceptable
   for +5% signal): ExploreSettings.rate_mode "tradeoff" with rate_cost_hz = 2000 Hz per unit
   efficiency, paired total-rate change with 1 sigma allowance, optional rate_max_hz; ranking by
-  utility gain - dR / rate_cost_hz. Old behaviour as rate_mode "per_path". Exploration re-run.
+  utility gain - dR / rate_cost_hz. Old behaviour as rate_mode "per_path". Exploration re-run (~2.3 h):
+  proposal = hand-tuned recommendation minus apr_alias100 / cprchi2, CeM OR 71.2%, rate x1.03.
+  Runner note: batches of 20 jobs on 18 cores leave 2 jobs for a second wave (~+12 min per batch).
 - 2026-11-06: full chain finished (run -> explore -> run proposed -> report). Report fixes:
   cached metric JSONs were reused although the jobs of a configuration had changed (a partial
   report during the run left the references without Offline/timing results); now re-evaluated
