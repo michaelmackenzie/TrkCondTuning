@@ -204,6 +204,20 @@ def report(study, wd, configs) -> str      # results/report.md + summary.json
 - Paired significance for efficiency gains uses per-event bits (McNemar).
 
 ## Work log
+- 2026-11-06 (evening): second study `studies/reduced_tracker_2026_v02.py` (Sim_best v2_0 + gain/noise,
+  v02 straw-response calibration `calib_v02`; reference `reduced_v02_prev` = the v01 proposal with
+  the v02 calibration). New `tct conditions` (trkcondtuning/conditions.py): tracker DB tables per
+  config for the sample run (dbTool, cached by CID), text-table overrides, ProditionsService values
+  (fhicl-get), dead straws by TrackerStatus noSignal logic, thresholds, alignment, response, and
+  re-digitization checks vs nominal (lower thresholds -> 'needs a closure test'; straws dead in
+  nominal are fine since production digitization ignores status). v2_0 thresholds are an
+  independent draw with the nominal mean: closure test (main/trigger/reduced_tracker_v02/notes.org)
+  gives redigi/direct ~0.955 for v02 and ~0.962 for v01 (same within errors; nominal 0.996).
+  Fix: load_study ignored a study name when a directory of that name existed in the cwd.
+  Runner is node-aware: a job starts only while the user's other mu2e processes (other sessions)
+  + this runner's running jobs < max_cores, re-checked every 30 s (other sessions started 16-job
+  batches next to an 18-core run twice). Use --cores 20: job batches are multiples of 10
+  (20 / 30 / 40), so 18 cores needed an extra wave for 20- and 40-job batches.
 - 2026-11-06 (later): background as a trade-off, not a per-path veto (user: ~100 Hz is acceptable
   for +5% signal): ExploreSettings.rate_mode "tradeoff" with rate_cost_hz = 2000 Hz per unit
   efficiency, paired total-rate change with 1 sigma allowance, optional rate_max_hz; ranking by

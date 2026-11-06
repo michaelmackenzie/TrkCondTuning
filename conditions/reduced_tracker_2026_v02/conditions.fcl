@@ -1,0 +1,8 @@
+# Reduced-tracker v02 (Sim_best v2_0, "tracker conditions based on expectations from KPP"):
+# gas gain / threshold noise of the ProditionsService. Applied to the re-digitization and the
+# reconstruction. The dead / disabled straws, preamp thresholds, delays and the reco straw
+# alignment come from the DB version itself (Condition: Sim_best v2_0, no text tables).
+# Source: source_settings_2026-11-06.fcl (first three lines; same values as reduced_tracker_2026).
+services.ProditionsService.strawDrift.wireVoltage : 1400
+services.ProditionsService.strawPhysics.gasGain : 5.53e4
+services.ProditionsService.strawElectronics.thresholdAnalogNoise : 3.5
