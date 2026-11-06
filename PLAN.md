@@ -4,7 +4,7 @@ Generalizes the reduced-tracker study of 2026-10 (main/trigger/reduced_tracker, 
 so that the re-tuning of the Offline reconstruction and the trigger can be repeated for any new
 detector condition (e.g. an official realistic-conditions setup) with repeatable results.
 
-## Status (last update 2026-11-06)
+## Status (last update 2026-11-06, rate trade-off)
 - v1 complete and run end to end on the 2026-10 reduced-tracker condition
   (`studies/reduced_tracker_2026_10.py`): 4 configurations evaluated, exploration, proposal
   evaluated; reference results in `results/reduced_tracker_2026_10/` (report.md, explore.md,
@@ -51,7 +51,7 @@ detector condition (e.g. an official realistic-conditions setup) with repeatable
    with), the condition under study with default settings (baseline), and any reference
    configurations.
 2. Explore candidate settings: reco phase (Offline), then trigger phase, greedy forward
-   selection with paired significance and background-rate / resolution constraints.
+   selection with paired significance, a signal vs background-rate trade-off and a resolution constraint.
 3. Evaluate every metric for the proposed configuration, and write a report
    (nominal / baseline / references / proposed).
 

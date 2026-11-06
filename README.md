@@ -8,7 +8,7 @@ results:
    were made with), the new condition with default settings (**baseline**) and any
    **reference** configurations;
 2. **explore** candidate reco and trigger settings (greedy forward selection: paired per-event
-   gains, background-rate and resolution constraints) and **propose** a configuration;
+   gains traded against the background rate, resolution constraint) and **propose** a configuration;
 3. evaluate the proposal and write a **report** (markdown + JSON) comparing all of them.
 
 It generalizes the 2026-10 reduced-tracker study (`main/trigger/reduced_tracker`, notes.org);
