@@ -12,7 +12,9 @@ results:
 3. evaluate the proposal and write a **report** (markdown + JSON) comparing all of them.
 
 It generalizes the 2026-10 reduced-tracker study (`main/trigger/reduced_tracker`, notes.org);
-`studies/reduced_tracker_2026_10.py` reproduces it. Design and status: [PLAN.md](PLAN.md).
+`studies/reduced_tracker_2026_10.py` reproduces it; its reference results are in
+[results/reduced_tracker_2026_10/](results/reduced_tracker_2026_10/report.md). Design, status and
+known gaps: [PLAN.md](PLAN.md).
 
 ## Setup
 

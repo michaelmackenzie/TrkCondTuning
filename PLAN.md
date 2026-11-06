@@ -4,8 +4,43 @@ Generalizes the reduced-tracker study of 2026-10 (main/trigger/reduced_tracker, 
 so that the re-tuning of the Offline reconstruction and the trigger can be repeated for any new
 detector condition (e.g. an official realistic-conditions setup) with repeatable results.
 
-## Status (last update 2026-11-05)
-- v0 design written (this file); implementation in progress.
+## Status (last update 2026-11-06)
+- v1 complete and run end to end on the 2026-10 reduced-tracker condition
+  (`studies/reduced_tracker_2026_10.py`): 4 configurations evaluated, exploration, proposal
+  evaluated; reference results in `results/reduced_tracker_2026_10/` (report.md, explore.md,
+  explore.json, summary.json for `tct check`). Full chain ~4 h on 18 cores of mu2esrv01.
+- Closure with the original study (notes.org): CeM nominal found 90.8% (90.5), CPR 72.8% (72.6),
+  reduced CPR 37.8% (37.4), recommended OR 71.5% (73.1), CeP recommended OR 50.8% (50.8); the
+  re-digitized trigger counts of the nominal CeM jobs are identical to the old redigi log.
+- Proposal (greedy, default ExploreSettings): reco `calib` + `offline_helix_loose`; trigger
+  `nsh10_cpr`, `cpr_finder_minhits7`, `nsh10_apr`. CeM objective OR 65.6% (reduced 45.8,
+  hand-tuned recommended 71.5, nominal 85.9); background OR 9.5 Hz (x0.28 of nominal; the
+  recommended config is x1.03); trigger CPU x0.74 of nominal. Offline is the same as the
+  recommended config (same reco settings).
+- The proposal is more conservative than the hand-tuned one: the APR recoveries
+  (`apr_finder_minima` +2.5%, `apr_phiz2` +1.4%) fail the per-path rate check on
+  apr_TrkDe_80m70p_D0200, which has 5 nominal events in 200k microbunches (gap 1 below).
+
+## Known gaps (next steps)
+1. **Rate constraint is per path with few events.** Each rate path must stay below
+   max(nominal, current) + 1 sigma; with 0-36 passing events in 200k NoPrimary microbunches a
+   path with 5 nominal events vetoes candidates while the total rate is at 28% of nominal. Options:
+   a total-rate budget (OR of the rate paths) as the main constraint, per-path checks only as
+   warnings, and more NoPrimary statistics (more groups) before trusting rate decisions.
+2. **Greedy selection misses combinations**: a setting whose prerequisite gains nothing on its
+   own is never tried (`apr_tgtrep100` needs `apr_cand3a20`, +0.2%). Bundles must be added by hand
+   (`knobs.combine`); no pairwise or backward-elimination pass.
+3. **Candidates are discrete, hand-written fragments.** `knobs.py` can generate cut variations
+   but there is no scan driver over a cut value; the menu of candidates decides what can be found.
+4. **No Offline background constraint** in the reco phase (fake tracks / momentum tails on
+   background); only signal efficiency and resolution.
+5. **Statistics**: 4000 CeM / 4000 CeP triggerable events (±0.8%), min_gain 0.5% is close to the
+   error; paired McNemar z protects the gain sign but not the size. 2 cosmic files.
+6. **Redigi validity**: only conditions that lower the hit efficiency (Condition.redigi_ok).
+7. **Local runner only** (<= 20 cores on the interactive node); no batch (MC-1 / grid) backend.
+8. **Timing** is one 16k-event job per configuration on a shared node: noise between runs is
+   not measured; treat differences below ~10% as noise.
+9. Stage diagnostics cover the objective paths only; calo paths are not in the study.
 
 ## What a study does
 1. Evaluate every metric for the nominal configuration (conditions the inputs were made
@@ -165,6 +200,12 @@ def report(study, wd, configs) -> str      # results/report.md + summary.json
 - Paired significance for efficiency gains uses per-event bits (McNemar).
 
 ## Work log
+- 2026-11-06: full chain finished (run -> explore -> run proposed -> report). Report fixes:
+  cached metric JSONs were reused although the jobs of a configuration had changed (a partial
+  report during the run left the references without Offline/timing results); now re-evaluated
+  when the configuration's job-status fingerprint changes. Cosmic e/mu x up/down categories now
+  for the objective expression; timing modules from TimeModule.Path when no fhicl-dump exists;
+  release backing chain in the provenance section. Reference results committed.
 - 2026-11-05 (later): integration. Pinned release work area (AnalysisMDC2025 v02_03_01 ->
   Offline v13_43_00): the shared main area's mu2e-trig-config had uncommitted edits breaking
   redigi. Fixes: muse env captured from a clean environment (the rootana driver env made mu2e
