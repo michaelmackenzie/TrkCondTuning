@@ -11,6 +11,7 @@ if <wd>/results/explore.json exists ({"proposed": {"name": ..., "settings": [...
 from __future__ import annotations
 
 import glob
+import hashlib
 import json
 import math
 import os
@@ -99,6 +100,7 @@ def evaluate_config(study: Study, wd: str, config) -> dict:
             notes.append(msg)
             print(f"WARNING [{cname}] {msg}", file=sys.stderr)
 
+    res["fingerprint"] = jobs_fingerprint(wd, cname)
     for s in study.samples:
         if s.role == "signal":
             if _has_jobs(wd, "trig", cname, s.name):
@@ -126,7 +128,8 @@ def evaluate_config(study: Study, wd: str, config) -> dict:
                 notes.append(f"timing {s.name}: no timing jobs")
         elif s.role == "cosmic":
             if _has_jobs(wd, "trig", cname, s.name):
-                run("cosmic", s, cosmic.efficiency, wd, cname, s, study.get_cosmic_paths(), s.pmin)
+                run("cosmic", s, cosmic.efficiency, wd, cname, s,
+                    _unique(study.get_cosmic_paths() + list(study.objective_paths)), s.pmin)
             else:
                 notes.append(f"cosmic {s.name}: no trig jobs")
     return _clean(res)
@@ -472,6 +475,8 @@ def _sec_provenance(study, wd, names):
         if t:
             rows.append(["TrkCondTuning", (t.get("hash") or "-")[:10], t.get("branch", "-"), "yes" if t.get("dirty") else "no",
                          t.get("diff", "")])
+        if last.get("backing"):
+            out.append("Release backing chain of the work area: " + " -> ".join(f"`{b}`" for b in last["backing"]) + "\n")
         out.append(_table(["repository", "HEAD", "branch", "dirty", "diff hash"], rows))
         for m in mixed:
             out.append(f"- WARNING {m}")
@@ -497,11 +502,26 @@ def _sec_provenance(study, wd, names):
 
 
 # --------------------------------------------------------------------------- report
+def jobs_fingerprint(wd: str, cname: str) -> str:
+    """Hash of the (directory, status) of every job of a configuration: cached metrics are only
+    reused while no job of the configuration was added, re-run or removed."""
+    h = hashlib.sha1()
+    for f in sorted(glob.glob(os.path.join(wd, "jobs", "*", cname, "*", "*", "status.json"))):
+        h.update(os.path.relpath(f, wd).encode())
+        try:
+            h.update(open(f, "rb").read())
+        except OSError:
+            pass
+    return h.hexdigest()[:16]
+
+
 def _load_metrics(study, wd, names, refresh) -> Dict[str, dict]:
     out = {}
     for n in names:
         p = os.path.join(results_dir(wd), "metrics", n + ".json")
         m = None if refresh else _read_json(p)
+        if m is not None and m.get("fingerprint") != jobs_fingerprint(wd, n):
+            m = None   # jobs changed since the metrics were evaluated
         if m is None:
             m = evaluate(study, wd, [n])[n]
         out[n] = m
@@ -512,7 +532,7 @@ def summary_dict(study: Study, metrics: Dict[str, dict]) -> dict:
     """Counts and derived numbers of the metrics (no timing: not deterministic); what `check` compares."""
     counts = {}
     for c, m in metrics.items():
-        d = {k: v for k, v in m.items() if k not in ("timing", "notes")}
+        d = {k: v for k, v in m.items() if k not in ("timing", "notes", "fingerprint")}
         counts[c] = _strip(d)
     return {"study": study.name, "configs": list(metrics), "counts": counts,
             "timing_mean_ms": {c: {s: t.get("mean_ms") for s, t in (m.get("timing") or {}).items()}

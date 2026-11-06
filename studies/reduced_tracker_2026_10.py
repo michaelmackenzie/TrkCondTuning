@@ -110,7 +110,7 @@ SAMPLES = [
 
 STUDY = Study(
     name="reduced_tracker_2026_10",
-    description=__doc__.strip().splitlines()[0] if __doc__ else "",
+    description="reduced-tracker study of 2026-10 (the study this package generalizes), redone with the exploration",
     nominal=nominal,
     baseline=baseline,
     references=[reduced_safe, reduced_recommended],

@@ -8,7 +8,8 @@ module shared by several paths is recorded once per event, under the path that r
 TimeSource(Run, SubRun, Event, Source, Time) input reading.
 
 Per-event time = the sum over the modules of the studied trigger paths (the module sequences
-physics.<path> of job.dump.fcl), without the data read (Prefetch), the re-digitization emulation
+physics.<path> of job.dump.fcl if present, else the
+TimeModule.Path column), without the data read (Prefetch), the re-digitization emulation
 (makeSD, TriggerableTrigger), art's own modules (TriggerResults, path/end-path bookkeeping), outputs
 and the analyzer. The first event of each job (initialization, conditions) is skipped.
 """
@@ -37,6 +38,17 @@ def path_modules(dump: str, paths: Sequence[str]) -> Set[str]:
             continue
         mods.update(re.findall(r'"([^"]+)"', b))
     return mods
+
+
+def db_path_modules(db: str, paths: Sequence[str]) -> Set[str]:
+    """Module labels the TimeTracker recorded under the given paths (TimeModule.Path). A module
+    shared with another path counts under the path that ran it first."""
+    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        q = "SELECT DISTINCT ModuleLabel FROM TimeModule WHERE Path IN (%s)" % ",".join("?" * len(paths))
+        return {r[0] for r in con.execute(q, list(paths))}
+    finally:
+        con.close()
 
 
 def event_times(db: str, modules: Optional[Iterable[str]], exclude: Iterable[str] = EXCLUDE,
@@ -81,8 +93,10 @@ def summary(wd: str, config, sample, study, skip_first: int = 1) -> dict:
         modules = None
         if os.path.exists(dumpf):
             modules = path_modules(open(dumpf).read(), study.trigger_paths) - EXCLUDE
+        if not modules:   # no fhicl-dump: the paths recorded by the TimeTracker
+            modules = db_path_modules(os.path.join(d, "timing.db"), study.trigger_paths) - EXCLUDE
         if not modules:
-            res.setdefault("warnings", []).append(f"{d}: no path modules in job.dump.fcl; all modules summed")
+            res.setdefault("warnings", []).append(f"{d}: no modules of the trigger paths found; all modules summed")
             modules = None
         t, m, n = event_times(os.path.join(d, "timing.db"), modules, skip_first=skip_first)
         allt.append(t)
